@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+!data/processed/manifest.csv
+outputs/*
+!outputs/.gitkeep

@@ -1,0 +1,17 @@
+# Core
+torch>=2.2
+torchvision>=0.17
+
+# Continual learning
+avalanche-lib>=0.5.0
+
+# VLM defect describer (Stage 2)
+open_clip_torch>=2.24
+
+# Utilities
+numpy
+pandas
+matplotlib
+scikit-learn
+Pillow
+tqdm
