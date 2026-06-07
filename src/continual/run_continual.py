@@ -27,12 +27,9 @@ import config
 from src.data.datasets import load_imagefolder
 from src.models.model import build_model
 
-# --- Avalanche imports (names are stable across 0.4-0.6; wrap the one that moved) ---
-from avalanche.benchmarks.generators import dataset_benchmark
-try:  # API name differs slightly between versions
-    from avalanche.benchmarks.utils import make_classification_dataset as wrap_ds
-except ImportError:  # newer Avalanche
-    from avalanche.benchmarks.utils import as_classification_dataset as wrap_ds
+# --- Avalanche 0.6 imports ---
+from avalanche.benchmarks import benchmark_from_datasets
+from avalanche.benchmarks.utils import as_classification_dataset
 
 from avalanche.training.supervised import Naive, Cumulative, EWC, LwF, Replay
 from avalanche.training.plugins import EvaluationPlugin
@@ -42,12 +39,12 @@ from avalanche.logging import InteractiveLogger, CSVLogger
 
 
 def build_benchmark():
-    """One experience per product, in config.PRODUCT_ORDER."""
+    """One experience per product (domain-incremental)."""
     train_sets, test_sets = [], []
     for product in config.PRODUCT_ORDER:
-        train_sets.append(wrap_ds(load_imagefolder(product, "train")))
-        test_sets.append(wrap_ds(load_imagefolder(product, "test")))
-    return dataset_benchmark(train_sets, test_sets)
+        train_sets.append(as_classification_dataset(load_imagefolder(product, "train")))
+        test_sets.append(as_classification_dataset(load_imagefolder(product, "test")))
+    return benchmark_from_datasets(train=train_sets, test=test_sets)
 
 
 def make_strategy(name, model, optimizer, criterion, evaluator, device):
