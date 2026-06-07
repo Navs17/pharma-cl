@@ -42,8 +42,8 @@ def build_benchmark():
     """One experience per product (domain-incremental)."""
     train_sets, test_sets = [], []
     for product in config.PRODUCT_ORDER:
-        train_sets.append(as_classification_dataset(load_imagefolder(product, "train")))
-        test_sets.append(as_classification_dataset(load_imagefolder(product, "test")))
+        train_sets.append(as_classification_dataset(load_imagefolder(product, "train"), task_labels=0))
+        test_sets.append(as_classification_dataset(load_imagefolder(product, "test"), task_labels=0))
     return benchmark_from_datasets(train=train_sets, test=test_sets)
 
 
