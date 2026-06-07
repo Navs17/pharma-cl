@@ -73,17 +73,21 @@ def _gather(product_root: Path):
                 continue
             files = [p for p in class_dir.rglob("*") if p.suffix.lower() in IMG_EXTS]
             if class_dir.name == "good":
-                good += [(f, "good") for f in files]
+                good += [(f, "good", None) for f in files]
             else:
-                defective += [(f, class_dir.name) for f in files]
+                sub = class_dir.name
+                # MVTec mask lives at <product>/ground_truth/<subtype>/<stem>_mask<ext>
+                for f in files:
+                    mask = product_root / "ground_truth" / sub / f"{f.stem}_mask{f.suffix}"
+                    defective.append((f, sub, mask if mask.exists() else None))
     return good, defective
 
 
 def _split(items, ratios, rng):
-    """Stratified split of a list of (file, subtype) by subtype."""
+    """Stratified split (by subtype) of a list of (file, subtype, mask) tuples."""
     by_subtype: dict[str, list] = {}
-    for f, st in items:
-        by_subtype.setdefault(st, []).append((f, st))
+    for item in items:
+        by_subtype.setdefault(item[1], []).append(item)
 
     train, val, test = [], [], []
     for st, group in by_subtype.items():
@@ -102,7 +106,7 @@ def _split(items, ratios, rng):
 
 
 def _copy(items, product, split, out_dir, manifest_rows):
-    for f, subtype in items:
+    for f, subtype, mask in items:
         binary = "good" if subtype == "good" else "defective"
         dest_dir = out_dir / product / split / binary
         dest_dir.mkdir(parents=True, exist_ok=True)
@@ -110,9 +114,22 @@ def _copy(items, product, split, out_dir, manifest_rows):
         dest_name = f"{subtype}__{f.name}"
         dest = dest_dir / dest_name
         shutil.copy2(f, dest)
+
+        # Copy the ground-truth mask (if any) into a sibling _masks folder that
+        # is OUTSIDE the train/val/test ImageFolder roots, so it is never picked
+        # up as a third class. Mask keeps the same basename as its image.
+        mask_rel = ""
+        if mask is not None:
+            mask_dir = out_dir / product / "_masks"
+            mask_dir.mkdir(parents=True, exist_ok=True)
+            mask_dest = mask_dir / dest_name
+            shutil.copy2(mask, mask_dest)
+            mask_rel = str(mask_dest.relative_to(out_dir))
+
         manifest_rows.append(
             {"product": product, "split": split, "binary_label": binary,
-             "subtype": subtype, "filepath": str(dest.relative_to(out_dir))}
+             "subtype": subtype, "filepath": str(dest.relative_to(out_dir)),
+             "mask_path": mask_rel}
         )
 
 
@@ -159,7 +176,7 @@ def main():
     manifest_path = out_dir / "manifest.csv"
     with open(manifest_path, "w", newline="") as fh:
         writer = csv.DictWriter(
-            fh, fieldnames=["product", "split", "binary_label", "subtype", "filepath"])
+            fh, fieldnames=["product", "split", "binary_label", "subtype", "filepath", "mask_path"])
         writer.writeheader()
         writer.writerows(manifest_rows)
 
